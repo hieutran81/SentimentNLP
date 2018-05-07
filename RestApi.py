@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 from flask import Flask, request, jsonify
 from flask_restful import Resource, Api
-from SentimentClassify import predict_sentiment
+from SentimentClassify import predict_sentiment, predict_cnn
 from sqlalchemy import create_engine
 from json import dumps
 
@@ -17,13 +17,17 @@ def sentiment():
     #print(request.method)
     if (request.method == "POST"):
         text = request.form['text']
+        print("cnn")
         print(text)
-        label, prob = predict_sentiment(text)
-        print(prob.shape)
+        label, prob = predict_cnn(text)
+        proba = []
+        for num in prob:
+            proba.append(float(num))
+        print(proba)
         label = str(label+1)
         print(label)
-        return jsonify({'status': 'success', 'text': text, 'label' : label, 'proba': list(prob[0])})
+        return jsonify({'status': 'success', 'text': text, 'label' : label, 'proba': proba})
     return "Sentiment classifier"
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host="0.0.0.0",debug=True)

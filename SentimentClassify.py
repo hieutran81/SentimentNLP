@@ -1,5 +1,6 @@
 import keras
 from keras import Input
+from keras.layers import TimeDistributed
 from keras import regularizers
 from keras.engine import Model
 from keras.optimizers import Adam
@@ -125,8 +126,8 @@ def fit_lstm():
     y_train = np.array(train_labels)
     X_test = test_embed
     y_test = test_labels
-    X_train = sequence.pad_sequences(X_train, maxlen= max_words)
-    X_test  = sequence.pad_sequences(X_test, maxlen = max_words)
+    # X_train = sequence.pad_sequences(X_train, maxlen= max_words)
+    # X_test  = sequence.pad_sequences(X_test, maxlen = max_words)
     y_train, y_test = convert_one_hot(y_train, y_test)
     # create the model
     model = Sequential()
@@ -134,9 +135,9 @@ def fit_lstm():
     model.add(Dense(3, activation="softmax"))
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(model.summary())
-    model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs= 50, batch_size= 32, verbose=2, shuffle=False)
-    score = model.evaluate(X_test, y_test, verbose = 0)
-    print("Accuracy : %.2f%%" %(score[1]*100))
+    model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs= 200, batch_size= 32, verbose=2, shuffle=False)
+    # score = model.evaluate(X_test, y_test, verbose = 0)
+    # print("Accuracy : %.2f%%" %(score[1]*100))
 
 
 def fit_cnn():
@@ -153,7 +154,7 @@ def fit_cnn():
     num_filters = 64
     drop = 0.6
     input_shape = train_embed[0].shape
-    epochs = 500
+    epochs = 300
     batch_size = 32
     inputs = Input(shape=(sequence_length,embedding_dim,1), dtype='float32')
     #batch_norm = BatchNormalization(input_shape = input_shape)(inputs)
@@ -184,7 +185,7 @@ def fit_cnn():
     concatenated_tensor = Concatenate(axis=1)([maxpool_0, maxpool_1, maxpool_2, maxpool_3])
     flatten = Flatten()(concatenated_tensor)
     dropout = Dropout(drop)(flatten)
-    output = Dense(units=3, activation='softmax', kernel_regularizers = keras.regularizers.l2(0.01))(dropout)
+    output = Dense(units=3, activation='softmax')(dropout)
 
     # this creates a model that includes
     model = Model(inputs=inputs, outputs=output)
@@ -196,24 +197,67 @@ def fit_cnn():
     model.save("model/cnn.h5")
     return model
 
-
-def predict_cnn():
+def fit_cnn_lstm():
+    # prepare data
+    X_train = train_embed
+    y_train = np.array(train_labels)
     X_test = test_embed
+    y_test = test_labels
+    X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], X_train.shape[2], 1))
+    X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], X_test.shape[2], 1))
+    y_train, y_test = convert_one_hot(y_train, y_test)
+
+    # config parameter model
+    sequence_length = train_embed.shape[1]
+    embedding_dim = train_embed.shape[2]
+    filter_size = 32
+    kernel_size = 3
+    pool_size = 2
+    drop = 0.5
+    batch_size = 128
+    # define CNN model
+    cnn = Sequential()
+    cnn.add(Conv2D(filters=filter_size, kernel_size= kernel_size, padding='valid', activation='relu', input_shape=(sequence_length,embedding_dim,1)))
+    cnn.add(MaxPooling2D(pool_size=pool_size, strides=(1,1)))
+    #cnn.add(Dropout(drop))
+    # define LSTM model
+    model = Sequential()
+    model.add(Conv2D(filters=filter_size, kernel_size=kernel_size, padding='valid', activation='relu',
+                   input_shape=(sequence_length, embedding_dim, 1)))
+    model.add(MaxPooling2D(pool_size=pool_size, strides=(1, 1)))
+    model.add(Reshape(target_shape = (sequence_length, None)))
+    model.add(LSTM(50))
+    model.add(Dense(3, activation='softmax'))
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    print(model.summary())
+    model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=10, batch_size=batch_size, verbose=2, shuffle=False)
+    # score = model.evaluate(X_test, y_test, verbose=0)
+    # print("Accuracy : %.2f%%" % (score[1] * 100))
+
+    #fit
+def predict_cnn(string):
+    # X_test = test_embed
+    X_test = embedding_for_test([string], max_words, dimens)
     X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], X_test.shape[2], 1))
     model = load_model("model/cnn.h5")
     predicted = model.predict(X_test)
-    predicted = reverse_one_hot(predicted)
-    print(accuracy_score(test_labels, predicted))
+    labels = reverse_one_hot(predicted)
+    return labels[0], predicted[0]
 
 
 max_words = 80
-dimens = 300
-train_embed, train_labels, test_embed, test_labels = fasttext_cnn(max_words, dimens)
-# # # #explain_result()
-# random_forest()
-# # #svm()
-# # # knn()
-# # #FastText()
-# fit_lstm()
-model  = fit_cnn()
-predict_cnn()
+dimens = 100
+
+if __name__ =="__main__":
+    # train_embed, train_labels, test_embed, test_labels = fasttext_cnn(max_words, dimens)
+    train_embed, train_labels, test_embed, test_labels = fasttext_tfidf(max_words, dimens)
+    # train_embed, train_labels, test_embed, test_labels, vectorizer = tf_idf()
+    # # # # # #explain_result()
+    # random_forest()
+    # svm()
+    # knn()
+    # # # #FastText()
+    #fit_lstm()
+    #model  = fit_cnn()
+    fit_lstm()
+    # predict_cnn()

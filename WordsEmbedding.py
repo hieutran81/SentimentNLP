@@ -181,8 +181,7 @@ def fasttext_lstm():
     test_embed  = np.array(test_embed)
     return train_embed, train_labels, test_embed, test_labels
 
-def fasttext_tfidf():
-    dimens = 150
+def fasttext_tfidf(maxwords = 50, dimens = 50):
     vectorizer = TfidfVectorizer(analyzer=separate)
     vectorizer = vectorizer.fit(train_data)
     train_tfidf = vectorizer.transform(train_data)
@@ -190,45 +189,55 @@ def fasttext_tfidf():
     vocab = vectorizer.vocabulary_
     print(type(vocab))
     print(test_tfidf.shape)
-    ftmodel = ft.skipgram('data/trainprocess.txt', 'skip_gram', dim=dimens)
+    ftmodel = ft.load_model('skip_gram.bin')
     # print(ftmodel.words)
     train_embed = []
     test_embed = []
-
-    for j in range(len(train_data)):
-        text = train_data[j]
+    count = 0
+    for i in range(len(train_data)):
+        text = train_data[i]
         tokens = separate(text)
         embed = []
-        for i in range(dimens):
-            embed.append(0)
-        for token in tokens:
+        for j in range(len(tokens)):
+            if (j >= maxwords):
+                count += 1
+                break
+            token = tokens[j]
             vec = ftmodel[token]
             multi = 1
             if (token in vocab.keys()):
                 multi = train_tfidf[j, vocab[token]]
-            for i in range(dimens):
-                embed[i] += vec[i] * multi
-        for i in range(dimens):
-            embed[i] = embed[i]/(len(tokens))
+            for k in range(dimens):
+                vec[k] = vec[k] * multi
+            embed.append(vec)
+        if (len(tokens) < maxwords):
+            for j in range(len(tokens),maxwords,1):
+                embed.append([0] * dimens)
         train_embed.append(embed)
+    print(count)
         #print(embed)
 
-    for j in range(len(test_data)):
-        text = test_data[j]
+    for i in range(len(test_data)):
+        text = test_data[i]
         tokens = separate(text)
         embed = []
-        for i in range(dimens):
-            embed.append(0)
-        for token in tokens:
+        for j in range(len(tokens)):
+            if (j >= maxwords):
+                count += 1
+                break
+            token = tokens[j]
             vec = ftmodel[token]
             multi = 1
             if (token in vocab.keys()):
                 multi = test_tfidf[j, vocab[token]]
-            for i in range(dimens):
-                embed[i] += vec[i] * multi
-        for i in range(dimens):
-            embed[i] = embed[i] / (len(tokens))
+            for k in range(dimens):
+                vec[k] = vec[k] * multi
+            embed.append(vec)
+        if (len(tokens) < maxwords):
+            for j in range(len(tokens),maxwords,1):
+                embed.append([0] * dimens)
         test_embed.append(embed)
+    print(count)
 
     train_embed = np.array(train_embed)
     test_embed = np.array(test_embed)
@@ -284,10 +293,32 @@ def fasttext_pretrain(maxwords):
     return train_embed, train_labels, test_embed, test_labels
 
 
+def embedding_for_test(sample, maxwords, dimens):
+    ftmodel = ft.load_model('skip_gram.bin')
+    sample_embed = []
+    count = 0
+    for text in sample:
+        tokens = separate(text)
+        embed = []
+        for j in range(len(tokens)):
+            token = tokens[j]
+            if (j >= maxwords):
+                count = count + 1
+                break
+            vec = ftmodel[token]
+            embed.append(vec)
+        if (len(tokens) < maxwords):
+            for j in range(len(tokens), maxwords, 1):
+                embed.append([0] * dimens)
+        sample_embed.append(embed)
+    return np.array(sample_embed)
+
+
 def fasttext_cnn(maxwords = 50, dimens = 50):
     #ftmodel = ft.supervised('data/trainprocess.txt', 'model/train', label_prefix='__label__')
     #ftmodel = ft.load_model('model/model_sentiment.bin', encoding = 'utf-8', label_prefix='__label__')
-    ftmodel = ft.skipgram('data/trainprocess.txt', 'skip_gram', dim = dimens)
+    #ftmodel = ft.skipgram('data/trainprocess.txt', 'skip_gram', dim = dimens)
+    ftmodel = ft.load_model('skip_gram.bin')
     # print(len(ftmodel['langgg']))
     # print(ftmodel.words)
     train_embed = []
@@ -328,8 +359,6 @@ def fasttext_cnn(maxwords = 50, dimens = 50):
     print(train_embed.shape)
     print(test_embed.shape)
     return train_embed, train_labels, test_embed, test_labels
-
-
 
 
 def merge(train_data, train_labels, val_data, val_label):

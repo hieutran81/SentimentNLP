@@ -1,3 +1,3 @@
 import requests
-r = requests.post('http://127.0.0.1:5000/sentiment', data={'text': 'không đẹp lắm'})
+r = requests.post('http://0.0.0.0:5000/sentiment', data={'text': 'hdmi mở ra một kỷ nguyên mới'})
 print(r.text)

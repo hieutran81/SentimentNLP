@@ -1,40 +1,48 @@
+"""
+Simple example of querying Elasticsearch creating REST requests
+"""
+import requests
 import json
-from flask import Flask, request, jsonify, Blueprint, abort
-from flask.views import MethodView
-from SentimentClassify import predict_sentiment
-
-sentiment = Blueprint('sentiment', __name__)
-app = Flask(__name__)
-app.register_blueprint(sentiment)
-
-@sentiment.route('/')
-@sentiment.route('/home')
-def home():
-    return "Welcome to the Catalog Home."
+from pprint import pprint
 
 
-class SentimentView(MethodView):
-    def get(self, id=None, page=1):
-        return "ha ha"
-
-    def post(self):
-        text = request.form.get('text')
-        label = predict_sentiment(text)
-        return jsonify({ 'text': text,'label': label})
-
-    def put(self, id):
-        # Update the record for the provided id
-        # with the details provided.
-        return
-
-    def delete(self, id):
-        # Delete the record for the provided id.
-        return
+def search(uri, term):
+    """Simple Elasticsearch Query"""
+    query = json.dumps({
+        "_index":""
+    })
+    response = requests.get(uri, data=query)
+    results = json.loads(response.text)
+    return results
 
 
-sentiment_view = SentimentView.as_view('sentiment_view')
-app.add_url_rule(
-    '/sentiment/', view_func=sentiment, methods=['GET', 'POST']
-)
-if __name__ == "__main__":
-    app.run(debug=True)
+def format_results(results):
+    """Print results nicely:
+    doc_id) content
+    """
+    data = [doc for doc in results['hits']['hits']]
+    for doc in data:
+        print("%s) %s" % (doc['_id'], doc['_source']['content']))
+
+
+def create_doc(uri, doc_data={}):
+    """Create new document."""
+    query = json.dumps(doc_data)
+    response = requests.post(uri, data=query)
+    print(response)
+
+
+if __name__ == '__main__':
+    uri_search = 'http://192.168.23.160:9200/si-socials-fb-2017-08'
+    uri_create = 'http://192.168.23.160:9200/test/articles/'
+
+    results = search(uri_search, "fox")
+    pprint(results)
+    # format_results(results)
+
+    # create_doc(uri_create, {"content": "The fox!"})
+    # results = search(uri_search, "fox")
+    # format_results(results)
+
+
+
